@@ -4,35 +4,32 @@ import type { DomainResult, ScreenStatus } from "../types";
  * Domain availability screening for .com / .ai / .io.
  *
  * Strategy (no paid registrar API required):
- * 1) DNS A/AAAA/NS/CNAME lookup via dns.google JSON API
- * 2) If DNS empty, RDAP query (best-effort) to distinguish unregistered vs parked
- *
- * When skipExternal=true, marks unchecked so the pipeline still runs offline.
+ * 1) Parallel DNS A + NS via dns.google
+ * 2) RDAP only when DNS is empty (best-effort)
  */
 
 async function dnsExists(hostname: string): Promise<boolean | null> {
   try {
-    const url = `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`;
-    const res = await fetch(url, {
-      headers: { Accept: "application/dns-json" },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as {
-      Status?: number;
-      Answer?: Array<{ type: number }>;
-    };
-    // Status 0 = NOERROR; answers present ⇒ likely registered/resolving
-    if (data.Answer && data.Answer.length > 0) return true;
-    // Also try NS
-    const nsUrl = `https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=NS`;
-    const nsRes = await fetch(nsUrl, {
-      headers: { Accept: "application/dns-json" },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!nsRes.ok) return null;
-    const nsData = (await nsRes.json()) as { Answer?: unknown[] };
-    if (nsData.Answer && nsData.Answer.length > 0) return true;
+    const [aRes, nsRes] = await Promise.all([
+      fetch(`https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`, {
+        headers: { Accept: "application/dns-json" },
+        signal: AbortSignal.timeout(5_000),
+      }),
+      fetch(`https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=NS`, {
+        headers: { Accept: "application/dns-json" },
+        signal: AbortSignal.timeout(5_000),
+      }),
+    ]);
+
+    if (aRes.ok) {
+      const data = (await aRes.json()) as { Answer?: unknown[] };
+      if (data.Answer && data.Answer.length > 0) return true;
+    }
+    if (nsRes.ok) {
+      const data = (await nsRes.json()) as { Answer?: unknown[] };
+      if (data.Answer && data.Answer.length > 0) return true;
+    }
+    if (!aRes.ok && !nsRes.ok) return null;
     return false;
   } catch {
     return null;
@@ -41,9 +38,8 @@ async function dnsExists(hostname: string): Promise<boolean | null> {
 
 async function rdapRegistered(domain: string): Promise<boolean | null> {
   try {
-    // RDAP bootstrap via rdap.org redirector
     const res = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(6_000),
       redirect: "follow",
       headers: { Accept: "application/rdap+json, application/json" },
     });
@@ -88,7 +84,26 @@ export async function checkDomain(
     };
   }
 
-  // DNS empty — confirm with RDAP when possible
+  // Fast path: DNS says free — treat as clear without waiting on RDAP
+  if (dns === false) {
+    // Fire RDAP in parallel only to catch parked non-resolving domains
+    const rdap = await rdapRegistered(domain);
+    if (rdap === true) {
+      return {
+        tld,
+        available: false,
+        status: "conflict",
+        detail: `${domain} found in RDAP`,
+      };
+    }
+    return {
+      tld,
+      available: true,
+      status: "clear",
+      detail: `${domain} appears unregistered`,
+    };
+  }
+
   const rdap = await rdapRegistered(domain);
   if (rdap === true) {
     return {
@@ -98,7 +113,7 @@ export async function checkDomain(
       detail: `${domain} found in RDAP`,
     };
   }
-  if (rdap === false || dns === false) {
+  if (rdap === false) {
     return {
       tld,
       available: true,
@@ -110,7 +125,7 @@ export async function checkDomain(
   return {
     tld,
     available: null,
-    status: "error",
+    status: toStatus(null),
     detail: `could not determine availability for ${domain}`,
   };
 }
@@ -120,15 +135,7 @@ export async function checkDomains(
   tlds: string[],
   opts: { skipExternal?: boolean } = {},
 ): Promise<DomainResult[]> {
-  const results: DomainResult[] = [];
-  for (const tld of tlds) {
-    results.push(await checkDomain(name, tld, opts));
-    // polite pacing for public resolvers
-    if (!opts.skipExternal) {
-      await new Promise((r) => setTimeout(r, 40));
-    }
-  }
-  return results;
+  return Promise.all(tlds.map((tld) => checkDomain(name, tld, opts)));
 }
 
 /** Keep names where ALL configured TLDs are clear (or unchecked in demo mode) */

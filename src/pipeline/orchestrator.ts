@@ -60,8 +60,23 @@ export async function runPipeline(
     notes: "≤8 letters, pronunciation, triple consonants, double vowels, spelling",
   });
 
-  // Cap before expensive external work
-  const forExternal = filtered.kept.slice(0, config.externalLimit);
+  // ── Step 2b: Pre-score so external screens hit the strongest names ─
+  t0 = Date.now();
+  emit("prescore", "Pre-scoring brand dimensions…");
+  const preScored = filtered.kept.map((name) => {
+    const scores = scoreBrand(name);
+    return { name, scores, total: totalScore(scores) };
+  });
+  preScored.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+  const forExternal = preScored.slice(0, config.externalLimit);
+  stages.push({
+    name: "prescore",
+    input: filtered.kept.length,
+    output: forExternal.length,
+    rejected: Math.max(0, filtered.kept.length - forExternal.length),
+    durationMs: Date.now() - t0,
+    notes: "deep-screen only the top brand-scored candidates",
+  });
 
   // ── Step 3: Domains ───────────────────────────────────────────────
   t0 = Date.now();
@@ -69,12 +84,12 @@ export async function runPipeline(
 
   const domainEntries = await mapPool(
     forExternal,
-    config.skipExternal ? 20 : 4,
-    async (name) => {
-      const domains = await checkDomains(name, config.tlds, {
+    config.skipExternal ? 32 : 12,
+    async (row) => {
+      const domains = await checkDomains(row.name, config.tlds, {
         skipExternal: config.skipExternal,
       });
-      return { name, domains };
+      return { ...row, domains };
     },
     (done, total) => emit("domains", `Domain screen ${done}/${total}`, done, total),
   );
@@ -90,14 +105,14 @@ export async function runPipeline(
     durationMs: Date.now() - t0,
     notes: config.skipExternal
       ? "skipped (demo) — all treated as unchecked/pass"
-      : "require clear .com + .ai + .io",
+      : "require clear .com + .ai + .io (parallel DNS)",
   });
 
   // ── Step 4: AI brand / trademark search ───────────────────────────
   t0 = Date.now();
   emit(
     "trademarks",
-    "AI brand search (web evidence + OpenAI)…",
+    "AI brand search (parallel web + OpenAI)…",
     0,
     afterDomain.length,
   );
@@ -115,7 +130,6 @@ export async function runPipeline(
     trademarks: tmResults[i]!,
   }));
 
-  // Reject hard conflicts; keep clear + unchecked (honest partial)
   const afterTm = tmEntries.filter((e) => e.trademarks.status !== "conflict");
   stages.push({
     name: "trademarks",
@@ -134,7 +148,7 @@ export async function runPipeline(
 
   const companyEntries = await mapPool(
     afterTm,
-    config.skipExternal ? 20 : 3,
+    config.skipExternal ? 32 : 10,
     async (entry) => {
       const [crunchbase, github, linkedin] = await Promise.all([
         screenCrunchbase(entry.name, { skipExternal: config.skipExternal }),
@@ -158,12 +172,11 @@ export async function runPipeline(
     notes: "Crunchbase + GitHub orgs/users + LinkedIn vanity",
   });
 
-  // ── Step 8: Brand scoring ─────────────────────────────────────────
+  // ── Step 8: Final rank (reuse pre-scores) ─────────────────────────
   t0 = Date.now();
-  emit("score", "Scoring brand dimensions…");
+  emit("score", "Ranking shortlist…");
 
   const scored: ScoredName[] = afterCompany.map((entry) => {
-    const scores = scoreBrand(entry.name);
     const domainOk =
       entry.domains.every((d) => d.status === "clear") ||
       (config.skipExternal && entry.domains.every((d) => d.status === "unchecked"));
@@ -177,8 +190,8 @@ export async function runPipeline(
       domains: entry.domains,
       trademarks: entry.trademarks,
       companies: entry.companies,
-      scores,
-      total: totalScore(scores),
+      scores: entry.scores,
+      total: entry.total,
       domainOk,
       trademarkOk,
       companyOk,

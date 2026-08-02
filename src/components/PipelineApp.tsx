@@ -119,10 +119,10 @@ export function PipelineApp() {
           {[
             ["Generate", "50k weighted phonetic candidates"],
             ["Filter", "Length, sound, spelling"],
+            ["Pre-score", "Deep-screen only the strongest brands"],
             ["Domains", ".com · .ai · .io"],
-            ["AI brand search", "Web evidence + OpenAI"],
+            ["AI brand search", "Parallel web + gpt-4.1-mini"],
             ["Companies", "Crunchbase · GitHub · LinkedIn"],
-            ["Score", "Enterprise · Scandi · Investor · Logo"],
           ].map(([title, body], i) => (
             <li key={title} style={{ animationDelay: `${0.05 * i}s` }}>
               <strong>{title}</strong>

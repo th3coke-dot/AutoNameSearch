@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { runPipeline } from "@/pipeline/orchestrator";
+import { saveRun } from "@/pipeline/storage";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -34,18 +33,8 @@ export async function POST(req: Request) {
       skipExternal: parsed.data.skipExternal ?? true,
     });
 
-    const outDir = path.join(process.cwd(), "data", "runs");
-    await mkdir(outDir, { recursive: true });
-    await writeFile(
-      path.join(outDir, `${result.runId}.json`),
-      JSON.stringify(result, null, 2),
-      "utf8",
-    );
-    await writeFile(
-      path.join(outDir, "latest.json"),
-      JSON.stringify(result, null, 2),
-      "utf8",
-    );
+    // Best-effort persist (/tmp on Vercel). Client uses the response body.
+    await saveRun(result);
 
     return NextResponse.json(result);
   } catch (err) {

@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+import { loadLatestRun } from "@/pipeline/storage";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  try {
-    const file = path.join(process.cwd(), "data", "runs", "latest.json");
-    const raw = await readFile(file, "utf8");
-    return NextResponse.json(JSON.parse(raw));
-  } catch {
+  const latest = await loadLatestRun();
+  if (!latest) {
     return NextResponse.json(
       { error: "No run yet. Start a pipeline from the UI or CLI." },
       { status: 404 },
     );
   }
+  return NextResponse.json(latest);
 }

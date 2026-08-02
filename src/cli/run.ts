@@ -1,8 +1,7 @@
 #!/usr/bin/env tsx
 import { config as loadEnv } from "dotenv";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { runPipeline } from "../pipeline/orchestrator";
+import { saveRun } from "../pipeline/storage";
 import type { PipelineConfig } from "../pipeline/types";
 
 loadEnv();
@@ -88,18 +87,8 @@ async function main() {
     );
   });
 
-  const outDir = path.join(process.cwd(), "data", "runs");
-  await mkdir(outDir, { recursive: true });
-  const outPath = path.join(outDir, `${result.runId}.json`);
-  await writeFile(outPath, JSON.stringify(result, null, 2), "utf8");
-  // Also write latest for the UI
-  await writeFile(
-    path.join(outDir, "latest.json"),
-    JSON.stringify(result, null, 2),
-    "utf8",
-  );
-
-  console.log(`\nSaved ${outPath}\n`);
+  await saveRun(result);
+  console.log(`\nSaved run ${result.runId}\n`);
 }
 
 main().catch((err) => {

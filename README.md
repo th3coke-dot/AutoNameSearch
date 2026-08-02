@@ -6,10 +6,10 @@ Not a curated shortlist. A systematic funnel:
 
 1. **Generate** — 50,000 weighted phonetic candidates (Scandinavian / engineering DNA)
 2. **Filter** — length ≤8, pronunciation, triple consonants, repeated vowels, spelling
-3. **Domains** — `.com` / `.ai` / `.io` via DNS + RDAP
-4. **AI brand search** — web evidence + OpenAI collision judgment (no USPTO/EUIPO/WIPO keys)
-5. **Companies** — Crunchbase, GitHub orgs/users, LinkedIn vanity
-6. **Score** — enterprise feel, Scandinavian DNA, typography, pronunciation, memorability, investor appeal, logo potential, verb potential, ecosystem fit
+3. **Pre-score** — brand-score everyone; only the strongest names hit live screens
+4. **Domains** — `.com` / `.ai` / `.io` via parallel DNS + RDAP
+5. **AI brand search** — parallel web evidence + `gpt-4.1-mini` batch judgments
+6. **Companies** — Crunchbase, GitHub orgs/users, LinkedIn vanity
 7. **Rank** — shortlist table with domain / TM / enterprise / brand / total
 
 ## Quick start
@@ -45,7 +45,7 @@ Outputs JSON under `data/runs/` (including `latest.json` for the UI).
 |----------|---------|
 | `GITHUB_TOKEN` | Higher GitHub rate limits for org/user checks |
 | `OPENAI_API_KEY` | AI brand / trademark collision search |
-| `OPENAI_MODEL` | Optional model override (default `gpt-4o-mini`) |
+| `OPENAI_MODEL` | Optional model override (default `gpt-4.1-mini`) |
 | `CRUNCHBASE_API_KEY` | Organization autocomplete conflicts |
 | `LINKEDIN_ACCESS_TOKEN` | Company vanity lookup |
 
