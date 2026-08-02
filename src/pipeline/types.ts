@@ -1,3 +1,7 @@
+import type { NamingContext } from "./context";
+import { EMPTY_CONTEXT } from "./context";
+
+export type { NamingContext, NamingTone } from "./context";
 export type ScreenStatus = "clear" | "conflict" | "unchecked" | "error";
 
 export interface DomainResult {
@@ -75,6 +79,8 @@ export interface PipelineConfig {
   topN: number;
   /** Prefer Scandinavian / engineering phonetic DNA */
   scandinavianBias: number;
+  /** Optional brief that steers generation, scoring, and AI screens */
+  context: NamingContext;
 }
 
 export interface PipelineResult {
@@ -101,4 +107,5 @@ export const DEFAULT_CONFIG: PipelineConfig = {
   externalLimit: 2_000,
   topN: 50,
   scandinavianBias: 0.85,
+  context: { ...EMPTY_CONTEXT },
 };

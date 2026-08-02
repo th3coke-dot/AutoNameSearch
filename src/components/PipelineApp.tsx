@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PipelineResult, ScoredName } from "@/pipeline/types";
+import type { NamingTone, PipelineResult, ScoredName } from "@/pipeline/types";
+import { TONES } from "@/pipeline/context";
 import styles from "./PipelineApp.module.css";
 
 function brandAvg(row: ScoredName): number {
@@ -33,6 +34,11 @@ export function PipelineApp() {
   const [candidates, setCandidates] = useState(5000);
   const [skipExternal, setSkipExternal] = useState(true);
   const [pending, setPending] = useState(false);
+  const [oneLiner, setOneLiner] = useState("");
+  const [tone, setTone] = useState<NamingTone>("nordic");
+  const [mustFeel, setMustFeel] = useState("");
+  const [mustAvoid, setMustAvoid] = useState("");
+  const [roots, setRoots] = useState("");
 
   useEffect(() => {
     fetch("/api/runs/latest")
@@ -55,6 +61,13 @@ export function PipelineApp() {
           externalLimit: Math.min(candidates, skipExternal ? candidates : 200),
           skipExternal,
           topN: 50,
+          context: {
+            oneLiner,
+            tone,
+            mustFeel,
+            mustAvoid,
+            roots,
+          },
         }),
       });
       const data = await res.json();
@@ -113,13 +126,77 @@ export function PipelineApp() {
         {error ? <p className={styles.error}>{error}</p> : null}
       </header>
 
+      <section className={styles.brief} aria-label="Naming brief">
+        <h2>Brief</h2>
+        <p className={styles.briefLede}>
+          Optional context steers generation weights, scoring, and AI collision review.
+        </p>
+        <div className={styles.briefGrid}>
+          <label className={styles.fieldWide}>
+            <span>One-liner</span>
+            <input
+              type="text"
+              value={oneLiner}
+              onChange={(e) => setOneLiner(e.target.value)}
+              placeholder="AI planning for engineering teams"
+              disabled={pending}
+              maxLength={240}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Tone</span>
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value as NamingTone)}
+              disabled={pending}
+            >
+              {TONES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.field}>
+            <span>Must feel</span>
+            <input
+              type="text"
+              value={mustFeel}
+              onChange={(e) => setMustFeel(e.target.value)}
+              placeholder="precise, calm, northern"
+              disabled={pending}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Must avoid</span>
+            <input
+              type="text"
+              value={mustAvoid}
+              onChange={(e) => setMustAvoid(e.target.value)}
+              placeholder="playful, crypto, cute"
+              disabled={pending}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Roots</span>
+            <input
+              type="text"
+              value={roots}
+              onChange={(e) => setRoots(e.target.value)}
+              placeholder="plan, syn, nor"
+              disabled={pending}
+            />
+          </label>
+        </div>
+      </section>
+
       <section className={styles.funnel} aria-label="Pipeline stages">
         <h2>The funnel</h2>
         <ol className={styles.steps}>
           {[
-            ["Generate", "50k weighted phonetic candidates"],
+            ["Generate", "Context-weighted phonetic candidates"],
             ["Filter", "Length, sound, spelling"],
-            ["Pre-score", "Deep-screen only the strongest brands"],
+            ["Pre-score", "Brief-aware brand ranking"],
             ["Domains", ".com · .ai · .io"],
             ["AI brand search", "Parallel web + gpt-4.1-mini"],
             ["Companies", "Crunchbase · GitHub · LinkedIn"],
@@ -139,6 +216,12 @@ export function PipelineApp() {
             <p className={styles.runMeta}>
               <span>{result.runId}</span>
               <span>{new Date(result.createdAt).toLocaleString()}</span>
+              {result.config.context?.oneLiner ? (
+                <span>{result.config.context.oneLiner}</span>
+              ) : null}
+              {result.config.context?.tone ? (
+                <span>tone: {result.config.context.tone}</span>
+              ) : null}
             </p>
             <div className={styles.bars}>
               {result.stages.map((s) => {
@@ -209,14 +292,13 @@ export function PipelineApp() {
         </>
       ) : (
         <section className={styles.empty}>
-          <p>No run yet. Launch the pipeline to generate a ranked shortlist.</p>
+          <p>No run yet. Add a brief if you want, then launch the pipeline.</p>
         </section>
       )}
 
       <footer className={styles.footer}>
         <p>
-          CLI: <code>npm run pipeline</code> · Demo:{" "}
-          <code>npm run pipeline:demo</code>
+          CLI: <code>npm run pipeline -- --one-liner &quot;…&quot; --tone nordic</code>
         </p>
         <p className={styles.disclaimer}>
           Automated screens are first-pass signals — not legal clearance. Set{" "}

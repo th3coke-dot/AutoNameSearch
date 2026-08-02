@@ -7,6 +7,11 @@ import { screenCrunchbase, screenLinkedIn } from "./screen/companies";
 import { rankNames, scoreBrand, totalScore } from "./scoring";
 import { makeRunId, mapPool } from "./util";
 import {
+  contextIsActive,
+  contextSummary,
+  normalizeContext,
+} from "./context";
+import {
   DEFAULT_CONFIG,
   type PipelineConfig,
   type PipelineResult,
@@ -25,11 +30,16 @@ export async function runPipeline(
   partial: Partial<PipelineConfig> = {},
   onProgress?: (e: ProgressEvent) => void,
 ): Promise<PipelineResult> {
-  const config: PipelineConfig = { ...DEFAULT_CONFIG, ...partial };
+  const config: PipelineConfig = {
+    ...DEFAULT_CONFIG,
+    ...partial,
+    context: normalizeContext(partial.context ?? DEFAULT_CONFIG.context),
+  };
   const stages: PipelineStageStats[] = [];
   const runId = makeRunId();
   const emit = (stage: string, message: string, done?: number, total?: number) =>
     onProgress?.({ stage, message, done, total });
+  const ctx = config.context;
 
   // ── Step 1: Generate ──────────────────────────────────────────────
   let t0 = Date.now();
@@ -37,6 +47,7 @@ export async function runPipeline(
   const generated = generateCandidates(
     config.candidateCount,
     config.seed ?? Date.now() % 1_000_000_000,
+    ctx,
   );
   stages.push({
     name: "generate",
@@ -44,7 +55,9 @@ export async function runPipeline(
     output: generated.length,
     rejected: Math.max(0, config.candidateCount - generated.length),
     durationMs: Date.now() - t0,
-    notes: "weighted Scandinavian / engineering phonetics",
+    notes: contextIsActive(ctx)
+      ? `context-weighted phonetics · ${contextSummary(ctx)}`
+      : "weighted Scandinavian / engineering phonetics",
   });
 
   // ── Step 2: Linguistic filter ─────────────────────────────────────
@@ -64,8 +77,8 @@ export async function runPipeline(
   t0 = Date.now();
   emit("prescore", "Pre-scoring brand dimensions…");
   const preScored = filtered.kept.map((name) => {
-    const scores = scoreBrand(name);
-    return { name, scores, total: totalScore(scores) };
+    const scores = scoreBrand(name, ctx);
+    return { name, scores, total: totalScore(scores, ctx) };
   });
   preScored.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
   const forExternal = preScored.slice(0, config.externalLimit);
@@ -121,6 +134,7 @@ export async function runPipeline(
     afterDomain.map((e) => e.name),
     {
       skipExternal: config.skipExternal,
+      context: ctx,
       onProgress: (done, total) =>
         emit("trademarks", `AI brand search ${done}/${total}`, done, total),
     },

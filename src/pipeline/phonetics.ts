@@ -1,3 +1,9 @@
+import {
+  biasPhoneticWeights,
+  type NamingContext,
+  EMPTY_CONTEXT,
+} from "./context";
+
 /**
  * Weighted phonetic building blocks — Scandinavian / engineering DNA.
  * Generation is designed, not random dictionary mashups.
@@ -131,23 +137,26 @@ function isWellFormed(raw: string): boolean {
 /**
  * Assemble prefix + optional core + suffix with seam-aware joining.
  * Patterns: Prefix+Suffix | Prefix+Core+Suffix
+ * Optional context reweights blocks (tone / roots / one-liner hints).
  */
 export function generateCandidates(
   count: number,
   seed = Date.now() % 1_000_000_000,
+  context: NamingContext = EMPTY_CONTEXT,
 ): string[] {
   const rng = createRng(seed);
   const out = new Set<string>();
   let guard = 0;
   const maxAttempts = count * 40;
+  const biased = biasPhoneticWeights(PREFIXES, CORES, SUFFIXES, context);
 
   while (out.size < count && guard < maxAttempts) {
     guard += 1;
-    const prefix = pickWeighted(PREFIXES, rng);
+    const prefix = pickWeighted(biased.prefixes, rng);
     // Prefer Prefix+Suffix for cleaner 5–7 letter brands; cores less often
     const useCore = rng() < 0.45;
-    let core = useCore ? pickWeighted(CORES, rng) : "";
-    const suffix = pickWeighted(SUFFIXES, rng);
+    let core = useCore ? pickWeighted(biased.cores, rng) : "";
+    const suffix = pickWeighted(biased.suffixes, rng);
 
     // Drop core when it stacks vowels at either seam
     if (

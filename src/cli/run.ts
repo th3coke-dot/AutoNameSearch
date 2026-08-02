@@ -2,6 +2,7 @@
 import { config as loadEnv } from "dotenv";
 import { runPipeline } from "../pipeline/orchestrator";
 import { saveRun } from "../pipeline/storage";
+import { normalizeContext, TONES, type NamingTone } from "../pipeline/context";
 import type { PipelineConfig } from "../pipeline/types";
 
 loadEnv();
@@ -27,6 +28,18 @@ async function main() {
   const seed = arg("--seed") ? Number(arg("--seed")) : undefined;
   const externalLimit = Number(arg("--external-limit") ?? "2000");
   const skipExternal = has("--skip-external");
+  const toneArg = arg("--tone");
+  const tone: NamingTone =
+    toneArg && (TONES as readonly string[]).includes(toneArg)
+      ? (toneArg as NamingTone)
+      : "nordic";
+  const context = normalizeContext({
+    oneLiner: arg("--one-liner") ?? "",
+    tone,
+    mustFeel: arg("--must-feel") ?? "",
+    mustAvoid: arg("--must-avoid") ?? "",
+    roots: arg("--roots") ?? "",
+  });
 
   const config: Partial<PipelineConfig> = {
     candidateCount: candidates,
@@ -34,6 +47,7 @@ async function main() {
     seed,
     externalLimit,
     skipExternal,
+    context,
   };
 
   console.log("\nAutoNameSearch — venture naming pipeline\n");
@@ -45,6 +59,7 @@ async function main() {
         seed: seed ?? "time-based",
         externalLimit,
         skipExternal,
+        context,
       },
       null,
       2,

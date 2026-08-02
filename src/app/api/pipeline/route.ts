@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runPipeline } from "@/pipeline/orchestrator";
 import { saveRun } from "@/pipeline/storage";
+import { NamingContextSchema, normalizeContext } from "@/pipeline/context";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -12,6 +13,7 @@ const BodySchema = z.object({
   seed: z.number().int().optional(),
   externalLimit: z.number().int().min(10).max(10_000).optional(),
   skipExternal: z.boolean().optional(),
+  context: NamingContextSchema.optional(),
 });
 
 export async function POST(req: Request) {
@@ -31,9 +33,9 @@ export async function POST(req: Request) {
       seed: parsed.data.seed,
       externalLimit: parsed.data.externalLimit ?? 500,
       skipExternal: parsed.data.skipExternal ?? true,
+      context: normalizeContext(parsed.data.context),
     });
 
-    // Best-effort persist (/tmp on Vercel). Client uses the response body.
     await saveRun(result);
 
     return NextResponse.json(result);

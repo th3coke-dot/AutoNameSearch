@@ -104,6 +104,7 @@
   font-size: 0.95rem;
 }
 
+.brief,
 .funnel,
 .stats,
 .results,
@@ -113,6 +114,7 @@
   border-top: 1px solid var(--line);
 }
 
+.brief h2,
 .funnel h2,
 .stats h2,
 .results h2 {
@@ -120,6 +122,63 @@
   font-family: var(--font-display);
   font-size: 1.6rem;
   letter-spacing: -0.02em;
+}
+
+.briefLede {
+  margin: -0.5rem 0 1.35rem;
+  color: var(--muted);
+  max-width: 36rem;
+  line-height: 1.45;
+}
+
+.briefGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+
+.field,
+.fieldWide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fieldWide {
+  grid-column: 1 / -1;
+}
+
+.field span,
+.fieldWide span {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field input,
+.fieldWide input,
+.field select {
+  background: transparent;
+  color: var(--ink);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0.65rem 0;
+  outline: none;
+  width: 100%;
+}
+
+.field input:focus,
+.fieldWide input:focus,
+.field select:focus {
+  border-bottom-color: var(--signal);
+}
+
+.field input::placeholder,
+.fieldWide input::placeholder {
+  color: rgba(138, 160, 179, 0.7);
 }
 
 .steps {
@@ -281,6 +340,10 @@
 
   .steps {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .briefGrid {
+    grid-template-columns: 1fr;
   }
 
   .ctaRow {

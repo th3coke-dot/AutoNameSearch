@@ -1,5 +1,11 @@
 import type { TrademarkHit, TrademarkResult } from "../types";
 import { mapPool } from "../util";
+import {
+  contextSummary,
+  type NamingContext,
+  EMPTY_CONTEXT,
+  contextIsActive,
+} from "../context";
 
 /**
  * AI brand / trademark collision search.
@@ -104,6 +110,7 @@ function heuristicFromSnippets(name: string, snippets: string[]): TrademarkResul
 
 async function judgeBatchWithOpenAI(
   batch: WebEvidence[],
+  context: NamingContext = EMPTY_CONTEXT,
 ): Promise<Map<string, AiTrademarkJudgment>> {
   const key = openaiKey();
   if (!key) return new Map();
@@ -113,9 +120,14 @@ async function judgeBatchWithOpenAI(
     evidence: b.snippets,
   }));
 
+  const brief = contextIsActive(context)
+    ? `\nNaming brief: ${contextSummary(context)}`
+    : "";
+
   const system = `You are a brand collision analyst for a venture naming pipeline.
 For each candidate name, decide if it likely conflicts with an existing company, product, or trademark in tech/SaaS/enterprise.
 Use the web evidence plus your knowledge. Be conservative on exact/near-exact famous matches; ignore weak coincidences.
+Also flag names that clash with the naming brief's must-avoid themes when clearly relevant.${brief}
 Return ONLY valid JSON: {"results":[{"name":"...","conflict":true|false,"confidence":0-1,"reason":"...","relatedMarks":["..."]}]}`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -135,6 +147,7 @@ Return ONLY valid JSON: {"results":[{"name":"...","conflict":true|false,"confide
           role: "user",
           content: JSON.stringify({
             candidates: payload,
+            brief: contextIsActive(context) ? context : undefined,
             instruction:
               "Mark conflict=true only for meaningful brand/trademark collisions a founder should reject.",
           }),
@@ -197,7 +210,7 @@ function judgmentToResult(
 /** Screen one name (used by tests / ad-hoc). Prefer screenTrademarksBatch in the funnel. */
 export async function screenTrademarks(
   name: string,
-  opts: { skipExternal?: boolean } = {},
+  opts: { skipExternal?: boolean; context?: NamingContext } = {},
 ): Promise<TrademarkResult> {
   const [result] = await screenTrademarksBatch([name], opts);
   return (
@@ -215,8 +228,13 @@ export async function screenTrademarks(
  */
 export async function screenTrademarksBatch(
   names: string[],
-  opts: { skipExternal?: boolean; onProgress?: (done: number, total: number) => void } = {},
+  opts: {
+    skipExternal?: boolean;
+    context?: NamingContext;
+    onProgress?: (done: number, total: number) => void;
+  } = {},
 ): Promise<TrademarkResult[]> {
+  const context = opts.context ?? EMPTY_CONTEXT;
   if (opts.skipExternal) {
     return names.map(() => ({
       status: "unchecked" as const,
@@ -264,7 +282,7 @@ export async function screenTrademarksBatch(
   let aiDone = 0;
   await mapPool(chunks, 4, async (chunk) => {
     try {
-      const judgments = await judgeBatchWithOpenAI(chunk.items);
+      const judgments = await judgeBatchWithOpenAI(chunk.items, context);
       for (let j = 0; j < chunk.items.length; j++) {
         const idx = chunk.start + j;
         const ev = chunk.items[j]!;

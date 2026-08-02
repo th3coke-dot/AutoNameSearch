@@ -4,13 +4,14 @@ Venture-capital grade naming pipeline — Project #3 alongside Scope2Plan and Pa
 
 Not a curated shortlist. A systematic funnel:
 
-1. **Generate** — 50,000 weighted phonetic candidates (Scandinavian / engineering DNA)
-2. **Filter** — length ≤8, pronunciation, triple consonants, repeated vowels, spelling
-3. **Pre-score** — brand-score everyone; only the strongest names hit live screens
-4. **Domains** — `.com` / `.ai` / `.io` via parallel DNS + RDAP
-5. **AI brand search** — parallel web evidence + `gpt-4.1-mini` batch judgments
-6. **Companies** — Crunchbase, GitHub orgs/users, LinkedIn vanity
-7. **Rank** — shortlist table with domain / TM / enterprise / brand / total
+1. **Brief** *(optional)* — one-liner, tone, must-feel / must-avoid, roots
+2. **Generate** — context-weighted phonetic candidates
+3. **Filter** — length ≤8, pronunciation, triple consonants, repeated vowels, spelling
+4. **Pre-score** — brief-aware brand ranking; only the strongest names hit live screens
+5. **Domains** — `.com` / `.ai` / `.io` via parallel DNS + RDAP
+6. **AI brand search** — parallel web evidence + `gpt-4.1-mini` batch judgments
+7. **Companies** — Crunchbase, GitHub orgs/users, LinkedIn vanity
+8. **Rank** — shortlist table with domain / TM / enterprise / brand / total
 
 ## Quick start
 
@@ -24,7 +25,12 @@ npm run dev            # UI at http://localhost:3000
 ### Full CLI run
 
 ```bash
-npm run pipeline -- --candidates 50000 --external-limit 2000
+npm run pipeline -- --candidates 50000 --external-limit 2000 \
+  --one-liner "AI planning for engineering teams" \
+  --tone nordic \
+  --must-feel "precise, calm" \
+  --must-avoid "playful, crypto" \
+  --roots "plan, nor, syn"
 ```
 
 Flags:
@@ -36,6 +42,11 @@ Flags:
 | `--top` | `50` | Shortlist length |
 | `--seed` | time | Reproducible generation |
 | `--skip-external` | off | Demo mode (no live HTTP screens) |
+| `--one-liner` | | What the company does |
+| `--tone` | `nordic` | `nordic` · `enterprise` · `industrial` · `soft` · `technical` |
+| `--must-feel` | | Comma-separated qualities |
+| `--must-avoid` | | Comma-separated avoid list |
+| `--roots` | | Comma-separated syllable / metaphor roots |
 
 Outputs JSON under `data/runs/` (including `latest.json` for the UI).
 
