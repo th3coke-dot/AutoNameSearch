@@ -1,0 +1,296 @@
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+.hero {
+  min-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 0 3rem;
+  animation: rise 0.8s ease both;
+}
+
+.kicker {
+  margin: 0 0 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--signal);
+}
+
+.brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(3.4rem, 11vw, 6.8rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  max-width: 12ch;
+}
+
+.lede {
+  margin: 1.5rem 0 0;
+  max-width: 38rem;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--muted);
+  animation: rise 0.9s ease 0.1s both;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2.25rem;
+  animation: rise 1s ease 0.18s both;
+}
+
+.primary {
+  appearance: none;
+  border: none;
+  background: var(--signal);
+  color: #04201c;
+  font-weight: 600;
+  padding: 0.9rem 1.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #59d9c9;
+}
+
+.primary:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.control select {
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.7rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.error {
+  margin-top: 1rem;
+  color: var(--danger);
+  font-size: 0.95rem;
+}
+
+.funnel,
+.stats,
+.results,
+.empty {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+
+.funnel h2,
+.stats h2,
+.results h2 {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem 1.5rem;
+}
+
+.steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  animation: rise 0.7s ease both;
+}
+
+.steps strong {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.steps span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.runMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: -0.25rem 0 1.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.barRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.barLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  text-transform: capitalize;
+}
+
+.barLabel em {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.barTrack {
+  height: 4px;
+  background: rgba(232, 240, 245, 0.08);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--signal-dim), var(--signal));
+  animation: funnel 0.9s ease both;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.tableWrap th,
+.tableWrap td {
+  text-align: left;
+  padding: 0.85rem 0.65rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.tableWrap th {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.nameCell {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.total {
+  font-family: var(--font-mono);
+  color: var(--signal);
+  font-weight: 500;
+}
+
+.markOk {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.markWarn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.markMuted {
+  color: var(--muted);
+}
+
+.empty p {
+  color: var(--muted);
+}
+
+.footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.footer code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.disclaimer {
+  max-width: 40rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .hero {
+    min-height: auto;
+    padding-top: 3rem;
+  }
+
+  .steps {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ctaRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
+}
