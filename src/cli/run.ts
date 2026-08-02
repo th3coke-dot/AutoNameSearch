@@ -1,8 +1,11 @@
 #!/usr/bin/env tsx
+import { config as loadEnv } from "dotenv";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { runPipeline } from "../pipeline/orchestrator";
 import type { PipelineConfig } from "../pipeline/types";
+
+loadEnv();
 
 function arg(flag: string): string | undefined {
   const i = process.argv.indexOf(flag);

@@ -1,7 +1,7 @@
 import { generateCandidates } from "./phonetics";
 import { linguisticFilter } from "./filters";
 import { checkDomains, domainsPass } from "./screen/domains";
-import { screenTrademarks } from "./screen/trademarks";
+import { screenTrademarksBatch } from "./screen/trademarks";
 import { screenGithubOrg } from "./screen/github";
 import { screenCrunchbase, screenLinkedIn } from "./screen/companies";
 import { rankNames, scoreBrand, totalScore } from "./scoring";
@@ -93,21 +93,27 @@ export async function runPipeline(
       : "require clear .com + .ai + .io",
   });
 
-  // ── Step 4: Trademarks ────────────────────────────────────────────
+  // ── Step 4: AI brand / trademark search ───────────────────────────
   t0 = Date.now();
-  emit("trademarks", "Screening trademarks (USPTO / EUIPO / WIPO)…", 0, afterDomain.length);
-
-  const tmEntries = await mapPool(
-    afterDomain,
-    config.skipExternal ? 20 : 2,
-    async (entry) => {
-      const trademarks = await screenTrademarks(entry.name, {
-        skipExternal: config.skipExternal,
-      });
-      return { ...entry, trademarks };
-    },
-    (done, total) => emit("trademarks", `Trademark screen ${done}/${total}`, done, total),
+  emit(
+    "trademarks",
+    "AI brand search (web evidence + OpenAI)…",
+    0,
+    afterDomain.length,
   );
+
+  const tmResults = await screenTrademarksBatch(
+    afterDomain.map((e) => e.name),
+    {
+      skipExternal: config.skipExternal,
+      onProgress: (done, total) =>
+        emit("trademarks", `AI brand search ${done}/${total}`, done, total),
+    },
+  );
+  const tmEntries = afterDomain.map((entry, i) => ({
+    ...entry,
+    trademarks: tmResults[i]!,
+  }));
 
   // Reject hard conflicts; keep clear + unchecked (honest partial)
   const afterTm = tmEntries.filter((e) => e.trademarks.status !== "conflict");
@@ -117,7 +123,9 @@ export async function runPipeline(
     output: afterTm.length,
     rejected: afterDomain.length - afterTm.length,
     durationMs: Date.now() - t0,
-    notes: "conflicts rejected; unchecked retained for manual counsel",
+    notes: config.skipExternal
+      ? "skipped (demo)"
+      : "AI + web collision screen; not legal clearance",
   });
 
   // ── Steps 5–7: Company screens (Crunchbase, GitHub, LinkedIn) ─────

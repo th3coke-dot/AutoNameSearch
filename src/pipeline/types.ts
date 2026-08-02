@@ -8,7 +8,7 @@ export interface DomainResult {
 }
 
 export interface TrademarkHit {
-  office: "USPTO" | "EUIPO" | "WIPO";
+  office: "AI";
   mark: string;
   status?: string;
   url?: string;

@@ -120,7 +120,7 @@ export function PipelineApp() {
             ["Generate", "50k weighted phonetic candidates"],
             ["Filter", "Length, sound, spelling"],
             ["Domains", ".com · .ai · .io"],
-            ["Trademarks", "EUIPO · USPTO · WIPO"],
+            ["AI brand search", "Web evidence + OpenAI"],
             ["Companies", "Crunchbase · GitHub · LinkedIn"],
             ["Score", "Enterprise · Scandi · Investor · Logo"],
           ].map(([title, body], i) => (
@@ -219,8 +219,9 @@ export function PipelineApp() {
           <code>npm run pipeline:demo</code>
         </p>
         <p className={styles.disclaimer}>
-          Automated screens are first-pass signals — not legal clearance. Wire API keys
-          in <code>.env</code> for EUIPO, WIPO, Crunchbase, and LinkedIn.
+          Automated screens are first-pass signals — not legal clearance. Set{" "}
+          <code>OPENAI_API_KEY</code> for AI brand search; optional{" "}
+          <code>CRUNCHBASE_API_KEY</code> / <code>LINKEDIN_ACCESS_TOKEN</code>.
         </p>
       </footer>
     </div>

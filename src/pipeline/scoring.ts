@@ -42,7 +42,7 @@ function syllableEstimate(name: string): number {
 /**
  * Deterministic brand scoring — no LLM required for v1.
  * Tuned for Scandinavian-engineering SaaS / enterprise feel.
- * Optional OPENAI_API_KEY path can refine later without changing the schema.
+ * Deterministic in-process scorer; trademark AI search is a separate stage.
  */
 export function scoreBrand(name: string): BrandScores {
   const lower = name.toLowerCase();
