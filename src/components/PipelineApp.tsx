@@ -131,12 +131,43 @@ export function PipelineApp() {
         <p className={styles.kicker}>Project #3 · workflow automation</p>
         <h1 className={styles.brand}>AutoNameSearch</h1>
         <p className={styles.lede}>
-          Generate thousands of designed names — or paste one you already like and
-          run the full vetting stack.
+          Paste a name to vet it — or generate thousands with the pipeline below.
         </p>
+
+        <div className={styles.heroVet} aria-label="Vet a name">
+          <label className={styles.heroVetField}>
+            <span>Name to vet</span>
+            <input
+              type="text"
+              value={vetQuery}
+              onChange={(e) => setVetQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && vetQuery.trim() && !vetPending) {
+                  void vet();
+                }
+              }}
+              placeholder="Type a name — e.g. Norvia"
+              disabled={pending || vetPending}
+              maxLength={500}
+              autoFocus
+            />
+          </label>
+          <button
+            className={styles.primary}
+            onClick={vet}
+            disabled={pending || vetPending || !vetQuery.trim()}
+          >
+            {vetPending ? "Vetting…" : "Vet name"}
+          </button>
+        </div>
+
         <div className={styles.ctaRow}>
-          <button className={styles.primary} onClick={run} disabled={pending || vetPending}>
-            {pending ? "Running pipeline…" : "Run pipeline"}
+          <button
+            className={styles.secondary}
+            onClick={run}
+            disabled={pending || vetPending}
+          >
+            {pending ? "Running pipeline…" : "Run full pipeline"}
           </button>
           <label className={styles.control}>
             <span>Candidates</span>
@@ -164,39 +195,9 @@ export function PipelineApp() {
         {error ? <p className={styles.error}>{error}</p> : null}
       </header>
 
-      <section className={styles.vet} aria-label="Vet a name">
-        <h2>Vet a name</h2>
-        <p className={styles.briefLede}>
-          Free text — one name, or a list separated by commas / new lines. Uses the
-          same domain, AI brand, company, and score checks.
-        </p>
-        <div className={styles.vetRow}>
-          <label className={styles.fieldWide}>
-            <span>Name</span>
-            <input
-              type="text"
-              value={vetQuery}
-              onChange={(e) => setVetQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && vetQuery.trim() && !vetPending) {
-                  void vet();
-                }
-              }}
-              placeholder="Norvia — or Norvia, Velion, Torix"
-              disabled={pending || vetPending}
-              maxLength={500}
-            />
-          </label>
-          <button
-            className={styles.secondary}
-            onClick={vet}
-            disabled={pending || vetPending || !vetQuery.trim()}
-          >
-            {vetPending ? "Vetting…" : "Vet name"}
-          </button>
-        </div>
-
-        {vetResult ? (
+      {vetResult ? (
+        <section className={styles.vet} aria-label="Vet results">
+          <h2>Vet results</h2>
           <div className={styles.vetResults}>
             {vetResult.results.map((row) => (
               <article key={row.name} className={styles.vetItem}>
@@ -263,8 +264,8 @@ export function PipelineApp() {
               </article>
             ))}
           </div>
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
       <section className={styles.brief} aria-label="Naming brief">
         <h2>Brief</h2>
@@ -434,7 +435,8 @@ export function PipelineApp() {
       ) : (
         <section className={styles.empty}>
           <p>
-            Vet a name above, or add a brief and run the full generation pipeline.
+            Type a name in the field above to vet it, or run the full generation
+            pipeline.
           </p>
         </section>
       )}
