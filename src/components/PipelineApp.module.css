@@ -104,6 +104,7 @@
   font-size: 0.95rem;
 }
 
+.vet,
 .brief,
 .funnel,
 .stats,
@@ -114,6 +115,7 @@
   border-top: 1px solid var(--line);
 }
 
+.vet h2,
 .brief h2,
 .funnel h2,
 .stats h2,
@@ -122,6 +124,121 @@
   font-family: var(--font-display);
   font-size: 1.6rem;
   letter-spacing: -0.02em;
+}
+
+.vetRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  align-items: end;
+}
+
+.secondary {
+  appearance: none;
+  border: 1px solid var(--signal);
+  background: transparent;
+  color: var(--signal);
+  font-weight: 600;
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.secondary:hover:not(:disabled) {
+  background: rgba(62, 198, 182, 0.12);
+}
+
+.secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.vetResults {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  margin-top: 1.75rem;
+}
+
+.vetItemHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.45rem;
+}
+
+.vetItemHead h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  letter-spacing: -0.02em;
+}
+
+.vetScore {
+  font-family: var(--font-mono);
+  color: var(--signal);
+  margin-left: auto;
+}
+
+.verdictStrong,
+.verdictCaution,
+.verdictReject {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.verdictStrong {
+  color: var(--ok);
+}
+
+.verdictCaution {
+  color: var(--warn);
+}
+
+.verdictReject {
+  color: var(--danger);
+}
+
+.vetSummary {
+  margin: 0 0 0.85rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.vetMeta {
+  margin: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.vetMeta div {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.vetMeta dt {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.vetMeta dd {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.vetMeta dd span {
+  margin-right: 0.85rem;
 }
 
 .briefLede {
@@ -344,6 +461,15 @@
 
   .briefGrid {
     grid-template-columns: 1fr;
+  }
+
+  .vetRow {
+    grid-template-columns: 1fr;
+  }
+
+  .vetMeta div {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
   }
 
   .ctaRow {

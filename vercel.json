@@ -2,6 +2,9 @@
   "functions": {
     "src/app/api/pipeline/route.ts": {
       "maxDuration": 300
+    },
+    "src/app/api/vet/route.ts": {
+      "maxDuration": 120
     }
   }
 }

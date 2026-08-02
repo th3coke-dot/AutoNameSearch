@@ -5,13 +5,14 @@ Venture-capital grade naming pipeline — Project #3 alongside Scope2Plan and Pa
 Not a curated shortlist. A systematic funnel:
 
 1. **Brief** *(optional)* — one-liner, tone, must-feel / must-avoid, roots
-2. **Generate** — context-weighted phonetic candidates
+2. **Generate** — context-weighted phonetic candidates  
+   *or* **Vet** — paste a free-text name / list and run the same screens
 3. **Filter** — length ≤8, pronunciation, triple consonants, repeated vowels, spelling
 4. **Pre-score** — brief-aware brand ranking; only the strongest names hit live screens
 5. **Domains** — `.com` / `.ai` / `.io` via parallel DNS + RDAP
 6. **AI brand search** — parallel web evidence + `gpt-4.1-mini` batch judgments
 7. **Companies** — Crunchbase, GitHub orgs/users, LinkedIn vanity
-8. **Rank** — shortlist table with domain / TM / enterprise / brand / total
+8. **Rank / verdict** — shortlist table, or strong / caution / reject for vetted names
 
 ## Quick start
 
@@ -47,6 +48,12 @@ Flags:
 | `--must-feel` | | Comma-separated qualities |
 | `--must-avoid` | | Comma-separated avoid list |
 | `--roots` | | Comma-separated syllable / metaphor roots |
+| `--vet` | | Free-text name (or list) to vet instead of generating |
+
+```bash
+npm run pipeline -- --vet "Norvia" --tone nordic
+npm run pipeline -- --vet "Norvia, Velion, Torix" --skip-external
+```
 
 Outputs JSON under `data/runs/` (including `latest.json` for the UI).
 
