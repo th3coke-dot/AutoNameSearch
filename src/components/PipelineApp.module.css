@@ -73,10 +73,11 @@
   max-width: 100%;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2.05rem, 7.2vw, 4.35rem);
-  line-height: 0.98;
-  letter-spacing: -0.045em;
-  overflow-wrap: anywhere;
+  font-size: clamp(1.85rem, 6.4vw, 4.1rem);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  overflow-wrap: break-word;
+  hyphens: none;
 }
 
 .lede {
@@ -518,7 +519,7 @@
   }
 
   .brand {
-    font-size: clamp(1.85rem, 11vw, 2.6rem);
+    font-size: clamp(1.65rem, 8.6vw, 2.15rem);
   }
 
   .steps {
