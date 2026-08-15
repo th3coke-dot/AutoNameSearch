@@ -1,13 +1,19 @@
 import type { TrademarkHit, TrademarkResult } from "../types";
+import { mapPool } from "../util";
+import {
+  contextSummary,
+  type NamingContext,
+  EMPTY_CONTEXT,
+  contextIsActive,
+} from "../context";
 
 /**
  * AI brand / trademark collision search.
  *
- * Replaces USPTO / EUIPO / WIPO API adapters with:
- * 1) Web search snippets (DuckDuckGo HTML — no key)
- * 2) OpenAI judgment of conflict risk (OPENAI_API_KEY)
+ * 1) Fast web evidence (single DuckDuckGo query, high concurrency)
+ * 2) Parallel OpenAI batch judgments (gpt-4.1-mini by default)
  *
- * This is a first-pass engineering screen, not legal clearance.
+ * First-pass engineering screen — not legal clearance.
  */
 
 export type AiTrademarkJudgment = {
@@ -28,45 +34,42 @@ function openaiKey(): string | undefined {
 }
 
 function openaiModel(): string {
-  return process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
+  // gpt-4.1-mini: strong quality, low latency for structured JSON batches
+  return process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini";
 }
 
 /** Pull lightweight web evidence for a name (no API key). */
 export async function searchWebEvidence(name: string): Promise<WebEvidence> {
-  const queries = [
-    `"${name}" trademark OR brand OR company`,
-    `"${name}" startup OR SaaS OR software`,
-  ];
+  const q = `"${name}" (trademark OR brand OR company OR startup OR SaaS)`;
   const snippets: string[] = [];
 
-  for (const q of queries) {
-    try {
-      const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(10_000),
-        headers: {
-          "User-Agent": "AutoNameSearch/0.1 (brand collision research)",
-          Accept: "text/html",
-        },
-      });
-      if (!res.ok) continue;
+  try {
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(6_000),
+      headers: {
+        "User-Agent": "AutoNameSearch/0.1 (brand collision research)",
+        Accept: "text/html",
+      },
+    });
+    if (res.ok) {
       const html = await res.text();
       const titles = [...html.matchAll(/class="result__a"[^>]*>(.*?)<\/a>/gi)].map((m) =>
         m[1]!.replace(/<[^>]+>/g, "").trim(),
       );
-      const bodies = [...html.matchAll(/class="result__snippet"[^>]*>(.*?)<\/a>?/gi)].map((m) =>
-        m[1]!.replace(/<[^>]+>/g, "").trim(),
-      );
-      for (let i = 0; i < Math.min(4, Math.max(titles.length, bodies.length)); i++) {
+      const bodies = [
+        ...html.matchAll(/class="result__snippet"[^>]*>([\s\S]*?)<\/(?:a|td|div)>/gi),
+      ].map((m) => m[1]!.replace(/<[^>]+>/g, "").trim());
+      for (let i = 0; i < Math.min(5, Math.max(titles.length, bodies.length)); i++) {
         const line = [titles[i], bodies[i]].filter(Boolean).join(" — ");
-        if (line) snippets.push(line.slice(0, 280));
+        if (line) snippets.push(line.slice(0, 240));
       }
-    } catch {
-      // best-effort
     }
+  } catch {
+    // best-effort
   }
 
-  return { name, snippets: [...new Set(snippets)].slice(0, 8) };
+  return { name, snippets: [...new Set(snippets)].slice(0, 6) };
 }
 
 function heuristicFromSnippets(name: string, snippets: string[]): TrademarkResult {
@@ -83,7 +86,6 @@ function heuristicFromSnippets(name: string, snippets: string[]): TrademarkResul
         office: "AI",
         mark: name,
         status: "possible web collision",
-        url: undefined,
       });
       break;
     }
@@ -108,6 +110,7 @@ function heuristicFromSnippets(name: string, snippets: string[]): TrademarkResul
 
 async function judgeBatchWithOpenAI(
   batch: WebEvidence[],
+  context: NamingContext = EMPTY_CONTEXT,
 ): Promise<Map<string, AiTrademarkJudgment>> {
   const key = openaiKey();
   if (!key) return new Map();
@@ -117,14 +120,19 @@ async function judgeBatchWithOpenAI(
     evidence: b.snippets,
   }));
 
+  const brief = contextIsActive(context)
+    ? `\nNaming brief: ${contextSummary(context)}`
+    : "";
+
   const system = `You are a brand collision analyst for a venture naming pipeline.
 For each candidate name, decide if it likely conflicts with an existing company, product, or trademark in tech/SaaS/enterprise.
 Use the web evidence plus your knowledge. Be conservative on exact/near-exact famous matches; ignore weak coincidences.
+Also flag names that clash with the naming brief's must-avoid themes when clearly relevant.${brief}
 Return ONLY valid JSON: {"results":[{"name":"...","conflict":true|false,"confidence":0-1,"reason":"...","relatedMarks":["..."]}]}`;
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(45_000),
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
@@ -139,6 +147,7 @@ Return ONLY valid JSON: {"results":[{"name":"...","conflict":true|false,"confide
           role: "user",
           content: JSON.stringify({
             candidates: payload,
+            brief: contextIsActive(context) ? context : undefined,
             instruction:
               "Mark conflict=true only for meaningful brand/trademark collisions a founder should reject.",
           }),
@@ -173,9 +182,8 @@ function judgmentToResult(
   if (!judgment) return fallback;
 
   if (judgment.conflict) {
-    const hits: TrademarkHit[] = (judgment.relatedMarks.length
-      ? judgment.relatedMarks
-      : [name]
+    const hits: TrademarkHit[] = (
+      judgment.relatedMarks.length ? judgment.relatedMarks : [name]
     ).map((mark) => ({
       office: "AI" as const,
       mark,
@@ -202,7 +210,7 @@ function judgmentToResult(
 /** Screen one name (used by tests / ad-hoc). Prefer screenTrademarksBatch in the funnel. */
 export async function screenTrademarks(
   name: string,
-  opts: { skipExternal?: boolean } = {},
+  opts: { skipExternal?: boolean; context?: NamingContext } = {},
 ): Promise<TrademarkResult> {
   const [result] = await screenTrademarksBatch([name], opts);
   return (
@@ -216,12 +224,17 @@ export async function screenTrademarks(
 
 /**
  * Batch AI trademark / brand search.
- * Gathers web evidence in parallel, then judges in OpenAI chunks.
+ * Web evidence in parallel, then concurrent OpenAI chunk judgments.
  */
 export async function screenTrademarksBatch(
   names: string[],
-  opts: { skipExternal?: boolean; onProgress?: (done: number, total: number) => void } = {},
+  opts: {
+    skipExternal?: boolean;
+    context?: NamingContext;
+    onProgress?: (done: number, total: number) => void;
+  } = {},
 ): Promise<TrademarkResult[]> {
+  const context = opts.context ?? EMPTY_CONTEXT;
   if (opts.skipExternal) {
     return names.map(() => ({
       status: "unchecked" as const,
@@ -232,32 +245,17 @@ export async function screenTrademarksBatch(
 
   if (!names.length) return [];
 
-  // 1) Web evidence
-  const evidence: WebEvidence[] = [];
-  const concurrency = 4;
-  let cursor = 0;
-  let done = 0;
+  // 1) Web evidence — high concurrency, single query per name
+  let webDone = 0;
+  const evidence = await mapPool(names, 16, async (name) => {
+    const ev = await searchWebEvidence(name);
+    webDone += 1;
+    opts.onProgress?.(Math.floor((webDone / names.length) * names.length * 0.45), names.length);
+    return ev;
+  });
 
-  async function worker() {
-    while (cursor < names.length) {
-      const i = cursor++;
-      const name = names[i]!;
-      evidence[i] = await searchWebEvidence(name);
-      done += 1;
-      // progress is half web / half AI conceptually — report web phase as 0–50%
-      opts.onProgress?.(Math.floor(done / 2), names.length);
-      await new Promise((r) => setTimeout(r, 80));
-    }
-  }
-
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, names.length) }, () => worker()),
-  );
-
-  // 2) AI judgment (or web heuristic fallback)
-  const key = openaiKey();
   const results: TrademarkResult[] = new Array(names.length);
-  const chunkSize = 12;
+  const key = openaiKey();
 
   if (!key) {
     for (let i = 0; i < names.length; i++) {
@@ -269,18 +267,25 @@ export async function screenTrademarksBatch(
           (heuristic.detail ? `${heuristic.detail}. ` : "") +
           "OPENAI_API_KEY not set — used web heuristic only.",
       };
-      opts.onProgress?.(Math.floor(names.length / 2) + Math.floor((i + 1) / 2), names.length);
     }
+    opts.onProgress?.(names.length, names.length);
     return results;
   }
 
+  // 2) Parallel OpenAI batches — larger chunks, concurrent workers
+  const chunkSize = 24;
+  const chunks: Array<{ start: number; items: WebEvidence[] }> = [];
   for (let start = 0; start < evidence.length; start += chunkSize) {
-    const chunk = evidence.slice(start, start + chunkSize);
+    chunks.push({ start, items: evidence.slice(start, start + chunkSize) });
+  }
+
+  let aiDone = 0;
+  await mapPool(chunks, 4, async (chunk) => {
     try {
-      const judgments = await judgeBatchWithOpenAI(chunk);
-      for (let j = 0; j < chunk.length; j++) {
-        const idx = start + j;
-        const ev = chunk[j]!;
+      const judgments = await judgeBatchWithOpenAI(chunk.items, context);
+      for (let j = 0; j < chunk.items.length; j++) {
+        const idx = chunk.start + j;
+        const ev = chunk.items[j]!;
         const fallback = heuristicFromSnippets(ev.name, ev.snippets);
         results[idx] = judgmentToResult(
           ev.name,
@@ -290,9 +295,9 @@ export async function screenTrademarksBatch(
         );
       }
     } catch (err) {
-      for (let j = 0; j < chunk.length; j++) {
-        const idx = start + j;
-        const ev = chunk[j]!;
+      for (let j = 0; j < chunk.items.length; j++) {
+        const idx = chunk.start + j;
+        const ev = chunk.items[j]!;
         const fallback = heuristicFromSnippets(ev.name, ev.snippets);
         results[idx] = {
           ...fallback,
@@ -303,11 +308,12 @@ export async function screenTrademarksBatch(
         };
       }
     }
+    aiDone += chunk.items.length;
     opts.onProgress?.(
-      Math.floor(names.length / 2) + Math.floor(Math.min(start + chunkSize, names.length) / 2),
+      Math.floor(names.length * 0.45) + Math.floor((aiDone / names.length) * names.length * 0.55),
       names.length,
     );
-  }
+  });
 
   return results;
 }

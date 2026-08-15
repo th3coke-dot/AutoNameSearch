@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 import { config as loadEnv } from "dotenv";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { runPipeline } from "../pipeline/orchestrator";
+import { saveRun } from "../pipeline/storage";
+import { normalizeContext, TONES, type NamingTone } from "../pipeline/context";
+import { vetNames } from "../pipeline/vet";
 import type { PipelineConfig } from "../pipeline/types";
 
 loadEnv();
@@ -23,11 +24,52 @@ function statusIcon(ok: boolean, unchecked?: boolean): string {
 }
 
 async function main() {
+  const skipExternal = has("--skip-external");
+  const toneArg = arg("--tone");
+  const tone: NamingTone =
+    toneArg && (TONES as readonly string[]).includes(toneArg)
+      ? (toneArg as NamingTone)
+      : "nordic";
+  const context = normalizeContext({
+    oneLiner: arg("--one-liner") ?? "",
+    tone,
+    mustFeel: arg("--must-feel") ?? "",
+    mustAvoid: arg("--must-avoid") ?? "",
+    roots: arg("--roots") ?? "",
+  });
+
+  const vetQuery = arg("--vet");
+  if (vetQuery) {
+    console.log("\nAutoNameSearch — vet name\n");
+    console.log(JSON.stringify({ query: vetQuery, skipExternal, context }, null, 2));
+    console.log("");
+    const result = await vetNames(vetQuery, { skipExternal, context });
+    if (!result.results.length) {
+      console.error("No valid names found in that text.");
+      process.exit(1);
+    }
+    for (const row of result.results) {
+      console.log(`\n${row.name}  [${row.verdict.toUpperCase()}]  score ${row.total}`);
+      console.log(`  ${row.summary}`);
+      console.log(
+        `  Domains: ${row.domains.map((d) => `${d.tld}:${d.status}`).join(" · ")}`,
+      );
+      console.log(`  TM: ${row.trademarks.status}${row.trademarks.detail ? ` — ${row.trademarks.detail}` : ""}`);
+      console.log(
+        `  Companies: ${row.companies.map((c) => `${c.source}:${c.status}`).join(" · ")}`,
+      );
+      if (row.linguisticNotes.length) {
+        console.log(`  Linguistic: ${row.linguisticNotes.join("; ")}`);
+      }
+    }
+    console.log(`\nRun ${result.runId}\n`);
+    return;
+  }
+
   const candidates = Number(arg("--candidates") ?? "50000");
   const topN = Number(arg("--top") ?? "50");
   const seed = arg("--seed") ? Number(arg("--seed")) : undefined;
   const externalLimit = Number(arg("--external-limit") ?? "2000");
-  const skipExternal = has("--skip-external");
 
   const config: Partial<PipelineConfig> = {
     candidateCount: candidates,
@@ -35,6 +77,7 @@ async function main() {
     seed,
     externalLimit,
     skipExternal,
+    context,
   };
 
   console.log("\nAutoNameSearch — venture naming pipeline\n");
@@ -46,6 +89,7 @@ async function main() {
         seed: seed ?? "time-based",
         externalLimit,
         skipExternal,
+        context,
       },
       null,
       2,
@@ -88,18 +132,8 @@ async function main() {
     );
   });
 
-  const outDir = path.join(process.cwd(), "data", "runs");
-  await mkdir(outDir, { recursive: true });
-  const outPath = path.join(outDir, `${result.runId}.json`);
-  await writeFile(outPath, JSON.stringify(result, null, 2), "utf8");
-  // Also write latest for the UI
-  await writeFile(
-    path.join(outDir, "latest.json"),
-    JSON.stringify(result, null, 2),
-    "utf8",
-  );
-
-  console.log(`\nSaved ${outPath}\n`);
+  await saveRun(result);
+  console.log(`\nSaved run ${result.runId}\n`);
 }
 
 main().catch((err) => {
