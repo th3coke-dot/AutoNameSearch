@@ -23,7 +23,12 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "AutoNameSearch — Venture naming pipeline",
   description:
-    "Phonetic generation, domain screening, AI brand collision search, company checks, and brand scoring — built like Scope2Plan and PartnerForge.",
+    "Phonetic generation, domain screening, AI brand collision search, company checks, and brand scoring — a SolvoOps Labs experiment.",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
