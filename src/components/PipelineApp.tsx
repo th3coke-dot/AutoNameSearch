@@ -128,7 +128,7 @@ export function PipelineApp() {
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
-        <p className={styles.kicker}>Project #3 · workflow automation</p>
+        <p className={styles.kicker}>SolvoOps Labs · naming pipeline</p>
         <h1 className={styles.brand}>AutoNameSearch</h1>
         <p className={styles.lede}>
           Paste a name to vet it — or generate thousands with the pipeline below.
@@ -443,7 +443,8 @@ export function PipelineApp() {
 
       <footer className={styles.footer}>
         <p>
-          CLI vet: <code>npm run pipeline -- --vet &quot;Norvia&quot;</code>
+          A SolvoOps Labs experiment ·{" "}
+          <a href="https://solvoops.com/labs">solvoops.com/labs</a>
         </p>
         <p className={styles.disclaimer}>
           Automated screens are first-pass signals — not legal clearance. Uncheck
