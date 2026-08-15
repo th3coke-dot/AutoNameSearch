@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PipelineResult, ScoredName } from "@/pipeline/types";
+import type { NamingTone, PipelineResult, ScoredName } from "@/pipeline/types";
+import type { VetResult, VettedName } from "@/pipeline/vet";
+import { TONES } from "@/pipeline/context";
 import styles from "./PipelineApp.module.css";
 
 function brandAvg(row: ScoredName): number {
@@ -27,12 +29,26 @@ function Mark({
   );
 }
 
+function verdictClass(verdict: VettedName["verdict"]): string {
+  if (verdict === "strong") return styles.verdictStrong;
+  if (verdict === "reject") return styles.verdictReject;
+  return styles.verdictCaution;
+}
+
 export function PipelineApp() {
   const [result, setResult] = useState<PipelineResult | null>(null);
+  const [vetResult, setVetResult] = useState<VetResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [candidates, setCandidates] = useState(5000);
   const [skipExternal, setSkipExternal] = useState(true);
   const [pending, setPending] = useState(false);
+  const [vetPending, setVetPending] = useState(false);
+  const [vetQuery, setVetQuery] = useState("");
+  const [oneLiner, setOneLiner] = useState("");
+  const [tone, setTone] = useState<NamingTone>("nordic");
+  const [mustFeel, setMustFeel] = useState("");
+  const [mustAvoid, setMustAvoid] = useState("");
+  const [roots, setRoots] = useState("");
 
   useEffect(() => {
     fetch("/api/runs/latest")
@@ -42,6 +58,14 @@ export function PipelineApp() {
       })
       .catch(() => undefined);
   }, []);
+
+  const contextPayload = {
+    oneLiner,
+    tone,
+    mustFeel,
+    mustAvoid,
+    roots,
+  };
 
   async function run() {
     setError(null);
@@ -55,6 +79,7 @@ export function PipelineApp() {
           externalLimit: Math.min(candidates, skipExternal ? candidates : 200),
           skipExternal,
           topN: 50,
+          context: contextPayload,
         }),
       });
       const data = await res.json();
@@ -73,26 +98,83 @@ export function PipelineApp() {
     }
   }
 
+  async function vet() {
+    setError(null);
+    setVetPending(true);
+    try {
+      const res = await fetch("/api/vet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: vetQuery,
+          skipExternal,
+          context: contextPayload,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg =
+          typeof data.error === "string" ? data.error : "Vet failed";
+        throw new Error(msg);
+      }
+      setVetResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Vet failed");
+    } finally {
+      setVetPending(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <header className={styles.hero}>
-        <p className={styles.kicker}>Project #3 · workflow automation</p>
+        <p className={styles.kicker}>SolvoOps Labs · naming pipeline</p>
         <h1 className={styles.brand}>AutoNameSearch</h1>
         <p className={styles.lede}>
-          A venture-grade naming pipeline — designed phonetics, domain and trademark
-          screens, company collision checks, brand scoring. Built the same way as
-          Scope2Plan and PartnerForge.
+          Paste a name to vet it — or generate thousands with the pipeline below.
         </p>
+
+        <div className={styles.heroVet} aria-label="Vet a name">
+          <label className={styles.heroVetField}>
+            <span>Name to vet</span>
+            <input
+              type="text"
+              value={vetQuery}
+              onChange={(e) => setVetQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && vetQuery.trim() && !vetPending) {
+                  void vet();
+                }
+              }}
+              placeholder="Type a name — e.g. Norvia"
+              disabled={pending || vetPending}
+              maxLength={500}
+              autoFocus
+            />
+          </label>
+          <button
+            className={styles.primary}
+            onClick={vet}
+            disabled={pending || vetPending || !vetQuery.trim()}
+          >
+            {vetPending ? "Vetting…" : "Vet name"}
+          </button>
+        </div>
+
         <div className={styles.ctaRow}>
-          <button className={styles.primary} onClick={run} disabled={pending}>
-            {pending ? "Running pipeline…" : "Run pipeline"}
+          <button
+            className={styles.secondary}
+            onClick={run}
+            disabled={pending || vetPending}
+          >
+            {pending ? "Running pipeline…" : "Run full pipeline"}
           </button>
           <label className={styles.control}>
             <span>Candidates</span>
             <select
               value={candidates}
               onChange={(e) => setCandidates(Number(e.target.value))}
-              disabled={pending}
+              disabled={pending || vetPending}
             >
               <option value={2000}>2,000</option>
               <option value={5000}>5,000</option>
@@ -105,7 +187,7 @@ export function PipelineApp() {
               type="checkbox"
               checked={skipExternal}
               onChange={(e) => setSkipExternal(e.target.checked)}
-              disabled={pending}
+              disabled={pending || vetPending}
             />
             Demo mode (skip live APIs)
           </label>
@@ -113,16 +195,153 @@ export function PipelineApp() {
         {error ? <p className={styles.error}>{error}</p> : null}
       </header>
 
+      {vetResult ? (
+        <section className={styles.vet} aria-label="Vet results">
+          <h2>Vet results</h2>
+          <div className={styles.vetResults}>
+            {vetResult.results.map((row) => (
+              <article key={row.name} className={styles.vetItem}>
+                <header className={styles.vetItemHead}>
+                  <h3>{row.name}</h3>
+                  <span className={verdictClass(row.verdict)}>{row.verdict}</span>
+                  <span className={styles.vetScore}>{row.total}</span>
+                </header>
+                <p className={styles.vetSummary}>{row.summary}</p>
+                <dl className={styles.vetMeta}>
+                  <div>
+                    <dt>Domains</dt>
+                    <dd>
+                      {row.domains.map((d) => (
+                        <span key={d.tld}>
+                          .{d.tld}{" "}
+                          <Mark
+                            ok={d.status === "clear"}
+                            unchecked={d.status === "unchecked"}
+                          />
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Brand / TM</dt>
+                    <dd>
+                      <Mark
+                        ok={row.trademarkOk}
+                        unchecked={row.trademarks.status === "unchecked"}
+                      />{" "}
+                      {row.trademarks.detail ?? row.trademarks.status}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Companies</dt>
+                    <dd>
+                      {row.companies.map((c) => (
+                        <span key={c.source}>
+                          {c.source}:{" "}
+                          <Mark
+                            ok={c.status === "clear"}
+                            unchecked={c.status === "unchecked"}
+                          />{" "}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Scores</dt>
+                    <dd>
+                      ent {row.scores.enterpriseFeel} · brand {brandAvg(row)} ·
+                      scandi {row.scores.scandinavianDna} · investor{" "}
+                      {row.scores.investorAppeal}
+                    </dd>
+                  </div>
+                  {row.linguisticNotes.length ? (
+                    <div>
+                      <dt>Linguistic</dt>
+                      <dd>{row.linguisticNotes.join("; ")}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className={styles.brief} aria-label="Naming brief">
+        <h2>Brief</h2>
+        <p className={styles.briefLede}>
+          Optional context steers generation, scoring, and AI collision review —
+          including free-text vetting.
+        </p>
+        <div className={styles.briefGrid}>
+          <label className={styles.fieldWide}>
+            <span>One-liner</span>
+            <input
+              type="text"
+              value={oneLiner}
+              onChange={(e) => setOneLiner(e.target.value)}
+              placeholder="AI planning for engineering teams"
+              disabled={pending || vetPending}
+              maxLength={240}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Tone</span>
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value as NamingTone)}
+              disabled={pending || vetPending}
+            >
+              {TONES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={styles.field}>
+            <span>Must feel</span>
+            <input
+              type="text"
+              value={mustFeel}
+              onChange={(e) => setMustFeel(e.target.value)}
+              placeholder="precise, calm, northern"
+              disabled={pending || vetPending}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Must avoid</span>
+            <input
+              type="text"
+              value={mustAvoid}
+              onChange={(e) => setMustAvoid(e.target.value)}
+              placeholder="playful, crypto, cute"
+              disabled={pending || vetPending}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Roots</span>
+            <input
+              type="text"
+              value={roots}
+              onChange={(e) => setRoots(e.target.value)}
+              placeholder="plan, syn, nor"
+              disabled={pending || vetPending}
+            />
+          </label>
+        </div>
+      </section>
+
       <section className={styles.funnel} aria-label="Pipeline stages">
         <h2>The funnel</h2>
         <ol className={styles.steps}>
           {[
-            ["Generate", "50k weighted phonetic candidates"],
+            ["Generate", "Context-weighted phonetic candidates"],
             ["Filter", "Length, sound, spelling"],
+            ["Pre-score", "Brief-aware brand ranking"],
             ["Domains", ".com · .ai · .io"],
-            ["AI brand search", "Web evidence + OpenAI"],
+            ["AI brand search", "Parallel web + gpt-4.1-mini"],
             ["Companies", "Crunchbase · GitHub · LinkedIn"],
-            ["Score", "Enterprise · Scandi · Investor · Logo"],
           ].map(([title, body], i) => (
             <li key={title} style={{ animationDelay: `${0.05 * i}s` }}>
               <strong>{title}</strong>
@@ -135,10 +354,16 @@ export function PipelineApp() {
       {result ? (
         <>
           <section className={styles.stats} aria-label="Run statistics">
-            <h2>Last run</h2>
+            <h2>Last pipeline run</h2>
             <p className={styles.runMeta}>
               <span>{result.runId}</span>
               <span>{new Date(result.createdAt).toLocaleString()}</span>
+              {result.config.context?.oneLiner ? (
+                <span>{result.config.context.oneLiner}</span>
+              ) : null}
+              {result.config.context?.tone ? (
+                <span>tone: {result.config.context.tone}</span>
+              ) : null}
             </p>
             <div className={styles.bars}>
               {result.stages.map((s) => {
@@ -209,19 +434,21 @@ export function PipelineApp() {
         </>
       ) : (
         <section className={styles.empty}>
-          <p>No run yet. Launch the pipeline to generate a ranked shortlist.</p>
+          <p>
+            Type a name in the field above to vet it, or run the full generation
+            pipeline.
+          </p>
         </section>
       )}
 
       <footer className={styles.footer}>
         <p>
-          CLI: <code>npm run pipeline</code> · Demo:{" "}
-          <code>npm run pipeline:demo</code>
+          A SolvoOps Labs experiment ·{" "}
+          <a href="https://solvoops.com/labs">solvoops.com/labs</a>
         </p>
         <p className={styles.disclaimer}>
-          Automated screens are first-pass signals — not legal clearance. Set{" "}
-          <code>OPENAI_API_KEY</code> for AI brand search; optional{" "}
-          <code>CRUNCHBASE_API_KEY</code> / <code>LINKEDIN_ACCESS_TOKEN</code>.
+          Automated screens are first-pass signals — not legal clearance. Uncheck
+          demo mode for live GitHub + AI brand search.
         </p>
       </footer>
     </div>
