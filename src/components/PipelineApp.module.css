@@ -1,9 +1,9 @@
 .page {
   position: relative;
   z-index: 1;
-  max-width: 1100px;
+  width: min(100% - 2rem, 68rem);
   margin: 0 auto;
-  padding: 0 1.5rem 4rem;
+  padding: 0 0 4.5rem;
 }
 
 .hero {
@@ -11,7 +11,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 3.5rem 0 2.5rem;
+  padding: 3rem 0 2.25rem;
   animation: rise 0.8s ease both;
 }
 
@@ -70,12 +70,13 @@
 
 .brand {
   margin: 0;
+  max-width: 100%;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(3.4rem, 11vw, 6.8rem);
-  line-height: 0.92;
-  letter-spacing: -0.04em;
-  max-width: 12ch;
+  font-size: clamp(2.05rem, 7.2vw, 4.35rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+  overflow-wrap: anywhere;
 }
 
 .lede {
@@ -314,20 +315,20 @@
 .field input,
 .fieldWide input,
 .field select {
-  background: transparent;
-  color: var(--ink);
-  border: none;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  padding: 0.65rem 0;
-  outline: none;
   width: 100%;
+  min-height: 2.75rem;
+  background: rgba(18, 36, 51, 0.55);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.7rem 0.8rem;
+  outline: none;
 }
 
 .field input:focus,
 .fieldWide input:focus,
 .field select:focus {
-  border-bottom-color: var(--signal);
+  border-color: var(--signal);
 }
 
 .field input::placeholder,
@@ -341,14 +342,28 @@
   padding: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.25rem 1.5rem;
+  gap: 1rem;
+  counter-reset: funnel-step;
 }
 
 .steps li {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  min-height: 7.5rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--line);
+  background: rgba(18, 36, 51, 0.35);
   animation: rise 0.7s ease both;
+}
+
+.steps li::before {
+  content: counter(funnel-step, decimal-leading-zero);
+  counter-increment: funnel-step;
+  color: var(--signal);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
 }
 
 .steps strong {
@@ -475,6 +490,12 @@
   font-size: 0.88rem;
 }
 
+.footer a {
+  color: var(--signal);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 .footer code {
   font-family: var(--font-mono);
   font-size: 0.82rem;
@@ -487,13 +508,25 @@
 }
 
 @media (max-width: 720px) {
+  .page {
+    width: min(100% - 1.5rem, 68rem);
+  }
+
   .hero {
     min-height: auto;
-    padding-top: 3rem;
+    padding-top: 2.25rem;
+  }
+
+  .brand {
+    font-size: clamp(1.85rem, 11vw, 2.6rem);
   }
 
   .steps {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .steps li {
+    min-height: 0;
   }
 
   .briefGrid {
