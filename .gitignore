@@ -13,3 +13,4 @@ data/runs/*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+.dashboard/
